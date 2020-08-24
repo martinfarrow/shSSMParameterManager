@@ -16,6 +16,8 @@ The data file format is described below.
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
 
+        get              : output the parameeter values to stdout
+
         list             : list parameters from the data_file
         matching         : list parameters that match their ssm value from the data_file
 

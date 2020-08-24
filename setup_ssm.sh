@@ -12,6 +12,8 @@ function usage() {
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
 
+        get              : output the parameter values to stdout
+
         list             : list parameters from the data_file
         matching         : list parameters that match their ssm value from the data_file
 
@@ -222,6 +224,32 @@ function check_ssm_value() {
   return $res
 }
 
+function get_ssm_value(){
+  local res
+  res=0
+  echo "$ppath"
+  case "$ptype" in
+    n) 
+      get_parameter "$ppath"
+      ;;
+    f) 
+      if [[ ! -r "$pvalue" ]];then
+        echo "Cannot locate file $pvalue"
+        return 0
+      fi
+      get_parameter "$ppath" 
+      ;;
+    l)
+      if [[ ! -r "$pvalue" ]];then
+        echo "Cannot locate file $pvalue"
+        return 0
+      fi
+      get_large_parameter "$ppath" 
+      ;;
+  esac
+  return 1
+}
+
 function display_ssm_value(){
   local res result op
   check_ssm_value
@@ -301,6 +329,7 @@ function update(){
             matching)      [[ $last -eq 1 ]] && matching;;
             need_updating|needs_updating|needs_update) [[ $last -eq 1 ]] && need_updating;; 
             update)        [[ $last -eq 1 ]] && update;;
+            get)           [[ $last -eq 1 ]] && get_ssm_value;;
             *) echo "Unknown action \"$myaction\""
                exit 1;;
           esac
