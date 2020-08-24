@@ -11,12 +11,15 @@ The data file format is described below.
 ## Options
   
   - -a: define a comma seperated list of actions, valid values are:
+
+        delete           : delete parameters - be very careful with this action it will delete
+                           everything 'under' the parameter pattern you provide.
   
         display          : display the value of local and ssm parameters
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
 
-        get              : output the parameeter values to stdout
+        get              : output the parameter values to stdout
 
         list             : list parameters from the data_file
         matching         : list parameters that match their ssm value from the data_file

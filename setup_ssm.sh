@@ -8,6 +8,9 @@ function usage() {
   Options
   =======
   -a: define a comma seperated list of actions, valid values are
+        delete           : delete parameters - be very careful with this action it will delete
+                           everything 'under' the parameter pattern you provide.
+
         display          : display the value of local and ssm paramters
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
@@ -294,6 +297,16 @@ function matching(){
   [[ $res -eq 1 ]] && echo "$ppath"
   return $res
 }
+
+function delete(){
+  echo "$ppath"
+  case "$ptype" in
+    n|f) delete_parameter "$ppath";;
+    l) delete_large_parameter "$ppath";;
+  esac
+  return 1
+}
+
 function update(){
   case "$ptype" in
     n) put_parameter "$ppath" "$pvalue"; echo $ppath;;
@@ -329,6 +342,7 @@ function update(){
             matching)      [[ $last -eq 1 ]] && matching;;
             need_updating|needs_updating|needs_update) [[ $last -eq 1 ]] && need_updating;; 
             update)        [[ $last -eq 1 ]] && update;;
+            delete)        [[ $last -eq 1 ]] && delete;;
             get)           [[ $last -eq 1 ]] && get_ssm_value;;
             *) echo "Unknown action \"$myaction\""
                exit 1;;
