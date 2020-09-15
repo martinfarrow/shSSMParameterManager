@@ -4,7 +4,7 @@ function usage() {
   cat << EOF
 
   setup_ssm.sh -a action1,action2,action3... [-d data_file] [-F ssm-function-path] [-k key_id] [pattern]
-  setup_ssm.sh -a duplicate -D targetDir [-d data_file] [-F ssm-function-path] [-S replacement] pattern
+  setup_ssm.sh -a duplicate -D targetDir [-d data_file] [-F ssm-function-path] [-k key_id] [-S replacement] pattern
   
   Options
   =======
@@ -16,7 +16,7 @@ function usage() {
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
 
-        duplicate        : copy the current parameters into the provide path (-D)
+        duplicate        : copy the current parameters into the provided path (-D)
                            so that an upload can be executed
 
         get              : output the parameter values to stdout

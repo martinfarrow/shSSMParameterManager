@@ -4,6 +4,9 @@ Shell code to manage ssm parameter store using aws cli.
 ```sh
   setup_ssm.sh -a action1,action2,action3... [-d data_file] 
                          [-F ssm-function-path] [-k key_id] [pattern]
+  setup_ssm.sh -a duplicate -D targetDir [-d data_file]
+            [-F ssm-function-path] [-S replacement] [-k key_id] pattern
+
 ```
 
 The data file format is described below.
@@ -18,6 +21,9 @@ The data file format is described below.
         display          : display the value of local and ssm parameters
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
+        
+        duplicate        : copy the current parameters into the provided path (-D)
+                           so that an upload can be executed
 
         get              : output the parameter values to stdout
 
@@ -31,6 +37,8 @@ The data file format is described below.
         update           : update the ssm parameter store to the value in the local file
 
   - -d: data_file, read parameter definitions from the path `data_file`. If `data_file` isn't supplied then the value of the environment varable `SSMDATA` is used as the path to the data_file
+  -   -D: Duplicate directory, parameters will be downloaded and an ssmData will be created
+      in this directory	
 
   - -F: path to the `ssm-functions.sh` file, provided in [AWSssmParameterFunction Repo](https://github.com/martinfarrow/AWSssmParameterFunctions).
      If not supplied the value of the environment variable `SSM_FUNCTION_PATH` is used and finally the default value of 
@@ -40,6 +48,7 @@ The data file format is described below.
 
   - -k: Set the key_id for encrypting parameters, if this is not set the value of the environment
       variable `KEY_ID` is used.
+  - -S: Substitute for pattern in ssmData (used in the duplication process)
 
 ## Arguments
 
@@ -64,7 +73,9 @@ setup_ssm.sh -a needs_updating,display
 
 to find out what needs updating and how the values have changed, then do
 
-       setup_ssm.sh -a needs_updating /stage/repo | setup_ssm.sh -a update 
+```
+setup_ssm.sh -a needs_updating /stage/repo | setup_ssm.sh -a update 
+```
        
 to update all the parameters.
 
@@ -83,6 +94,20 @@ setup_ssm.sh -a needs_updating /stage/repo | setup_ssm.sh -a update | setup_ssm.
 ```
       
 which will find the values that need updating, update them and then display the new values, so you can confirm that they got updated.
+
+You can create a duplicate structure
+
+```
+$ setup_ssm.sh -a duplicate -D duplicateDir /prod/preprod
+``` 
+will create a ssmData in duplicateDir and grab copies of all the files stored in parameter store
+
+```
+$ setup_ssm.sh -a duplicate -D duplicate -S /prod/production /prod/preprod
+```
+
+will do the same as above, but will also rewrite the paths in ssmData to match the substitue path.
+
 
 ## Data file format
 
