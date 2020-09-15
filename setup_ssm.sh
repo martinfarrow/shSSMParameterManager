@@ -4,6 +4,7 @@ function usage() {
   cat << EOF
 
   setup_ssm.sh -a action1,action2,action3... [-d data_file] [-F ssm-function-path] [-k key_id] [pattern]
+  setup_ssm.sh -a duplicate -D targetDir [-d data_file] [-F ssm-function-path] [-S replacement] pattern
   
   Options
   =======
@@ -14,6 +15,9 @@ function usage() {
         display          : display the value of local and ssm paramters
                            Note if the parameters are files, or large parameters
                            md5sums are displayed in place of values
+
+        duplicate        : copy the current parameters into the provide path (-D)
+                           so that an upload can be executed
 
         get              : output the parameter values to stdout
 
@@ -30,6 +34,9 @@ function usage() {
       if data_file isn't supplied then the value of the environment varable SSMDATA is
       used as the path to the data_file
 
+  -D: Duplicate directory, parameters will be downloaded and an ssmData will be created
+      in this directory
+
   -F: path to the ssm-functions.sh file, provided in this repo. If not supplied the value
       of the environment variable SSM_FUNCTION_PATH is used or the default value of 
       ./ssm-functions.sh
@@ -38,6 +45,8 @@ function usage() {
 
   -k: Set the key_id for encrypting parameters, if this is not set the value of the environment
       variable KEY_ID is used.
+
+  -S: Substitute for pattern in ssmData (used in the duplication process)
 
   Arguments
   =========
@@ -77,6 +86,19 @@ function usage() {
       
      To find the values that need updating, update them and then display the new values, confirming
      that they got updated
+
+  3. You can create a duplicate structure
+
+     $ setup_ssm.sh -a duplicate -D duplicateDir /prod/preprod
+ 
+     will create a ssmData in duplicateDir and grab copies of all the files stored in parameter store
+
+     $ setup_ssm.sh -a duplicate -D duplicate -S /prod/production /prod/preprod
+
+     will do the same as above, but will also rewrite the paths in ssmData to match the substitue 
+     path
+  
+ 
      
 EOF
 }
@@ -114,6 +136,10 @@ EOF
 action=""
 key_id=""
 ssm_function_path="./ssm-functions.sh"
+dupDir=""
+subValue=""
+dupFlag=0
+subFlag=0
 
   if [[ ! -z ${SSMDATA} ]];then
     dataFile="$SSMDATA"
@@ -128,15 +154,17 @@ ssm_function_path="./ssm-functions.sh"
   fi
 
 
-  while getopts ":a:d:hk:F:" option $@
+  while getopts ":a:d:hk:F:D:S:" option $@
   do
     case "${option}" in 
-      a) action=${OPTARG};;
-      d) dataFile=${OPTARG};;
+      a) action="${OPTARG}";;
+      d) dataFile="${OPTARG}";;
       \?) usage;exit 0;;
       h) parameter_file_help;exit 0;;
       k) key_id=${OPTARG};;
-      F) ssm_function_path=${OPTARG};;
+      F) ssm_function_path="${OPTARG}";;
+      D) dupFlag=1;dupDir="${OPTARG}";;
+      S) subFlag=1;subValue="${OPTARG}";;
     esac
   done
 
@@ -170,6 +198,16 @@ ssm_function_path="./ssm-functions.sh"
 
   if [[ ! -r ${ssm_function_path} ]];then
     echo "Cannot read the ssm-functions.sh file \"$ssm_function_path\""
+    exit 1
+  fi
+
+  if [[ $dupFlag -eq 1 ]] && [[ ! -d ${dupDir} ]];then
+    echo "Directory ($dupDir) isn't a directory"
+    exit 1
+  fi
+
+  if [[ $subFlag -eq 1 ]] && [[ $dupFlag -eq 0 ]];then
+    echo "Error -S (substitute option) requires -D (duplicate option)"
     exit 1
   fi
 
@@ -252,6 +290,39 @@ function get_ssm_value(){
   esac
   return 1
 }
+function trimPath() {
+  local start
+  start="$1"
+  pathToTrim="$2"
+  echo $pathToTrim | 
+    awk -F '/' 'BEGIN{ slash=""; start='$start' }
+                { 
+                  for(i=start+2;i<=NF;i++){
+                    printf("%s%s",slash,$i);
+                    slash="/";
+                  }
+                }'
+}
+
+function duplicate() {
+  local target depth rpath
+  echo $ppath
+  depth=$(echo $pattern | tr -d -c '[/]' | wc -c | tr -d ' ')
+  target=$(trimPath $depth $ppath)
+  if [[ $subFlag -eq 1 ]];then
+    rpath=$subValue/$target
+  else
+    rpath=$ppath
+  fi
+  case "$ptype" in 
+    n)   result=$(get_ssm_value |tail -1)
+         echo "$ptype:$rpath:$result" >> $dupDir/ssmData;;
+    f|l) 
+         mkdir -p $dupDir/$(dirname $target)
+         get_ssm_value > $dupDir/$target
+         echo "$ptype:$rpath:./$target" >> $dupDir/ssmData;;
+  esac
+}
 
 function display_ssm_value(){
   local res result op
@@ -316,7 +387,6 @@ function update(){
   return 1
 }
 
-
   if [[ $pattern == "-" ]];then
     patterns=""
     while read pat
@@ -344,6 +414,7 @@ function update(){
             update)        [[ $last -eq 1 ]] && update;;
             delete)        [[ $last -eq 1 ]] && delete;;
             get)           [[ $last -eq 1 ]] && get_ssm_value;;
+            duplicate)     [[ $last -eq 1 ]] && duplicate;;
             *) echo "Unknown action \"$myaction\""
                exit 1;;
           esac
