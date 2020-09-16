@@ -201,6 +201,12 @@ subFlag=0
     exit 1
   fi
 
+  echo $action | grep -i --quiet "duplicate"
+  if [[ $? -eq 0 ]] && [[ ${dupDir} == "" ]];then
+    echo "You must provide a directory for duplication with the -D option and it must not be blank"
+    exit 1
+  fi
+
   if [[ $dupFlag -eq 1 ]] && [[ ! -d ${dupDir} ]];then
     echo "Directory ($dupDir) isn't a directory"
     exit 1
@@ -266,9 +272,18 @@ function check_ssm_value() {
 }
 
 function get_ssm_value(){
-  local res
+  local res option qflag OPTIND
+  qflag=0
+  while getopts "q" option $@
+  do
+    case "$option" in
+      q) qflag=1;;
+    esac
+  done
+  shift $((OPTIND -1))
+
   res=0
-  echo "$ppath"
+  [[ $qflag == 0 ]] && echo "$ppath"
   case "$ptype" in
     n) 
       get_parameter "$ppath"
@@ -315,11 +330,11 @@ function duplicate() {
     rpath=$ppath
   fi
   case "$ptype" in 
-    n)   result=$(get_ssm_value |tail -1)
+    n)   result=$(get_ssm_value -q)
          echo "$ptype:$rpath:$result" >> $dupDir/ssmData;;
     f|l) 
          mkdir -p $dupDir/$(dirname $target)
-         get_ssm_value > $dupDir/$target
+         get_ssm_value -q > $dupDir/$target
          echo "$ptype:$rpath:./$target" >> $dupDir/ssmData;;
   esac
 }
