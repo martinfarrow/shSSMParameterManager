@@ -5,6 +5,7 @@ function usage() {
 
   setup_ssm.sh -a action1,action2,action3... [-d data_file] [-F ssm-function-path] [-k key_id] [pattern]
   setup_ssm.sh -a duplicate -D targetDir [-d data_file] [-F ssm-function-path] [-k key_id] [-S replacement] pattern
+  setup_ssm.sh -a ssm pattern
   
   Options
   =======
@@ -27,6 +28,8 @@ function usage() {
         need_updating    )
         needs_updating   ) list parameters that differ from their ssm value
         needs_update     ) 
+
+        ssm              : list parameter names from ssm parameter store that match pattern
 
         update           : update the ssm parameter store to the value in the local file
 
@@ -181,7 +184,20 @@ subFlag=0
     pattern="$1"
   fi
 
-  if [[ ! -r $dataFile ]];then
+  needsDataFile=1
+  for myaction in $(echo $action | tr '[A-Z]' '[a-z]' | sed "s/,/ /g") 
+  do
+    case "$myaction" in
+      ssm) needsDataFile=0;;
+    esac
+  done
+
+  if [[ $needsDataFile -eq 1 ]] && [[ -z $dataFile ]];then
+    echo "You must provide a datafile, -d option"
+    exit 1
+  fi
+
+  if [[ $needsDataFile -eq 1 ]] && [[ ! -r $dataFile ]];then
     echo "Cannot read data file \"$dataFile\""
     exit 1
   fi
@@ -289,17 +305,17 @@ function get_ssm_value(){
       get_parameter "$ppath"
       ;;
     f) 
-      if [[ ! -r "$pvalue" ]];then
-        echo "Cannot locate file $pvalue"
-        return 0
-      fi
+      #if [[ ! -r "$pvalue" ]];then
+      #  echo "Cannot locate file $pvalue"
+      #  return 0
+      #fi
       get_parameter "$ppath" 
       ;;
     l)
-      if [[ ! -r "$pvalue" ]];then
-        echo "Cannot locate file $pvalue"
-        return 0
-      fi
+      #if [[ ! -r "$pvalue" ]];then
+      #  echo "Cannot locate file $pvalue"
+      #  return 0
+      #fi
       get_large_parameter "$ppath" 
       ;;
   esac
@@ -359,7 +375,7 @@ function display_ssm_value(){
   return 1
 }
 
-function list_ssm_config(){
+function list_ssmData_config(){
   echo "$line"
   return 1
 }
@@ -402,6 +418,8 @@ function update(){
   return 1
 }
 
+function mainActions() {
+
   if [[ $pattern == "-" ]];then
     patterns=""
     while read pat
@@ -423,7 +441,7 @@ function update(){
         do
           case "$myaction" in
             display)       [[ $last -eq 1 ]] && display_ssm_value;;
-            list)          [[ $last -eq 1 ]] && list_ssm_config;;
+            list)          [[ $last -eq 1 ]] && list_ssmData_config;;
             matching)      [[ $last -eq 1 ]] && matching;;
             need_updating|needs_updating|needs_update) [[ $last -eq 1 ]] && need_updating;; 
             update)        [[ $last -eq 1 ]] && update;;
@@ -438,4 +456,32 @@ function update(){
       fi
     done
   done
+}
+
+function ssmActions() {
+  local p mypattern
+  mypattern="$pattern"
+  if [[ $mypattern == - ]];then
+    mypattern=""
+  fi
+  list_parameters $mypattern | tr "\t" "\n" | while read p
+  do
+    echo $p
+  done
+}
+
+# If ssm is in action then we need to look in the paramter store rather than the file
+
+echo $action | grep --quiet -i "ssm" 
+if [[ $? -eq 0 ]];then
+  echo $action | grep --quiet -i '^ssm$'
+  if [[ $? -eq 1 ]];then
+    echo "The 'ssm' action cannot be combined with any other action"
+    exit 1
+  fi
+  ssmActions
+else
+  mainActions
+fi
+
 
